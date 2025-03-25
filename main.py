@@ -1,26 +1,28 @@
-import requests
-from fastapi import FastAPI, HTTPException  
-import json
-from dotenv import load_dotenv
-import os
-from notion_client import Client  
-
 """
-    Setting up Notion Client
+    This file is for testing purpose -> checking the integration of notion api and database
 """
 
 
-load_dotenv()
-NOTION_API_KEY = os.getenv("NOTION_API_KEY")
-NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")  
+
+# import os
+# from notion_client import Client  
+
+# """
+#     Setting up Notion Client
+# """
 
 
-notion = Client(auth=NOTION_API_KEY) 
-database_id = NOTION_DATABASE_ID
+# load_dotenv()
+# NOTION_API_KEY = os.getenv("NOTION_API_KEY")
+# NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")  
 
-# Fetching Database entry / drop
-try:
-    response = notion.databases.query(database_id=database_id)
-    print(json.dumps(response, indent=4))
-except Exception as e:
-    print("Error:", e)
+
+# notion = Client(auth=NOTION_API_KEY) 
+# database_id = NOTION_DATABASE_ID
+
+# # Fetching Database entry / drop
+# try:
+#     response = notion.databases.query(database_id=database_id)
+#     print(json.dumps(response, indent=4))
+# except Exception as e:
+#     print("Error:", e)
