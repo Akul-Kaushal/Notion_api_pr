@@ -1,70 +1,57 @@
 from dotenv import load_dotenv
 import requests
 import os
-from fastapi import FastAPI , HTTPException
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 
-"""
-    loading env
-"""
+# Load environment variables
 load_dotenv()
 NOTION_API_KEY = os.getenv("NOTION_API_KEY")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
 
-
-
 def get_notion_version():
-    """
-    Returns the latest Notion API version.
-    Update this manually when Notion releases a new version.
-    """
-    return os.getenv("NOTION_VERSION", "2022-06-28")  
+    return os.getenv("NOTION_VERSION", "2022-06-28")
 
-
-"""
-    FastAPI setup
-"""
-
+# FastAPI Setup
 app = FastAPI()
 
+# Allow requests from your frontend (Vite)
+origins = [
+    "http://localhost:5173",  # Vite frontend
+    "http://127.0.0.1:5173"   # Alternative localhost address
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Allows specific frontend origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
+)
+
+
 headers = {
-    "Authorization" : f"Bearer {NOTION_API_KEY}",
-    "Notion-Version" : get_notion_version(),
+    "Authorization": f"Bearer {NOTION_API_KEY}",
+    "Notion-Version": get_notion_version(),
     "Content-Type": "application/json"
 }
 
 @app.get("/")
 def root():
-    return {"message":"Notion Task Manager is Running"}
+    return {"message": "Notion Task Manager is Running"}
 
-@app.get("/test-notion")
-def test_notion():
-    url = f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}/query"
-    response = requests.post(url, headers=headers)
-
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise HTTPException(status_code=response.status_code, detail="failed")
-
-"""
-    adding the following methods
-    1. POST :: /tasks : add a new task to notion
-    2. GET :: /tasks : fetch all tasks from notion
-    3. PATCH :: /tasks{id} : Update a task status in notion
-    4. DELETE :: /tasks{id} : Delete a task from notion
-"""
-
-# 1. POST
+# 1. **POST** - Create a Task
 class TaskRequest(BaseModel):
     task_name: str
-    due_date: str = None
-    priority: str = None
+    due_date: Optional[str] = None
+    priority: Optional[str] = None
 
-@app.post("/task")
+@app.post("/tasks")
 def create_task(task: TaskRequest):
     url = "https://api.notion.com/v1/pages"
-    
+
     data = {
         "parent": {"database_id": NOTION_DATABASE_ID},
         "properties": {
@@ -79,32 +66,48 @@ def create_task(task: TaskRequest):
         data["properties"]["Priority"] = {"select": {"name": task.priority}}
 
     response = requests.post(url, headers=headers, json=data)
-
-    if response.status_code == 200:
+    
+    try:
+        response.raise_for_status()
         return {"message": "Task created successfully", "notion_response": response.json()}
-    else:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+    except requests.exceptions.HTTPError as e:
+        raise HTTPException(status_code=response.status_code, detail=str(e))
 
-
-# 2. GET
+# 2. **GET** - Fetch All Tasks (Formatted)
 @app.get("/tasks")
 def get_tasks():
     url = f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}/query"
 
     response = requests.post(url, headers=headers)
 
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise HTTPException(status_code=response.status_code, detail="Failed to fetch tasks")
+    try:
+        response.raise_for_status()
+        data = response.json()
 
-# 3. Patch
+        tasks = []
+        for item in data["results"]:
+            properties = item["properties"]
+            task = {
+                "id": item["id"],
+                "name": properties["Name"]["title"][0]["text"]["content"] if properties["Name"]["title"] else "Unnamed Task",
+                "due_date": properties.get("Due Date", {}).get("date", {}).get("start", None),
+                "priority": properties.get("Priority", {}).get("select", {}).get("name", None),
+            }
+            tasks.append(task)
+
+        return {"tasks": tasks}
+    
+    except requests.exceptions.HTTPError as e:
+        raise HTTPException(status_code=response.status_code, detail=str(e))
+
+# 3. **PATCH** - Update Task Properties
 class TaskUpdate(BaseModel):
-    task_name: str | None = None  # Optional fields for partial update
-    due_date: str | None = None
-    priority: str | None = None
+    task_name: Optional[str] = None
+    due_date: Optional[str] = None
+    priority: Optional[str] = None
+
 @app.patch("/tasks/{task_id}")
-async def update_task(task_id: str, task: TaskUpdate):
+def update_task(task_id: str, task: TaskUpdate):
     url = f"https://api.notion.com/v1/pages/{task_id}"
     data = {"properties": {}}
 
@@ -118,9 +121,25 @@ async def update_task(task_id: str, task: TaskUpdate):
         data["properties"]["Priority"] = {"select": {"name": task.priority}}
 
     response = requests.patch(url, headers=headers, json=data)
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail=response.json())
-    return {"message": "Task updated successfully"}
+    
+    try:
+        response.raise_for_status()
+        return {"message": "Task updated successfully"}
+    except requests.exceptions.HTTPError as e:
+        raise HTTPException(status_code=response.status_code, detail=str(e))
+
+# 4. **DELETE** - Delete Task (Fixed)
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: str):
+    url = f"https://api.notion.com/v1/pages/{task_id}"  # Corrected URL
+
+    response = requests.delete(url, headers=headers)
+
+    try:
+        response.raise_for_status()
+        return {"message": "Task deleted successfully"}
+    except requests.exceptions.HTTPError as e:
+        raise HTTPException(status_code=response.status_code, detail=str(e))
 
 
 # # 3.5 PUT
