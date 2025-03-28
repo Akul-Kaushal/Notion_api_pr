@@ -6,7 +6,7 @@
   justify-content: center;
   height: 100vh;
   width: 100vw;
-  background-color: #1e1e1e;
+  background-color: #09090910;
   color: black;
   text-align: center;
 }
@@ -33,6 +33,7 @@ h1 {
   background-color: #0056b3;
 }
 
+
 /* Dropdown menu styling */
 .dropdown {
   list-style: none;
@@ -45,6 +46,8 @@ h1 {
   text-align: center;
   overflow: hidden;
 }
+
+
 
 .dropdown li {
   padding: 12px;

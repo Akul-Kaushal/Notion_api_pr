@@ -3,10 +3,10 @@ import "./App.css";
 
 function App() {
     const [showOptions, setShowOptions] = useState(false);
-    const [tasks, setTasks] = useState([]); // ✅ Fixed: Only declared inside App
+    const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const API_BASE_URL = "http://localhost:8000"; // Adjust if necessary
+    const API_BASE_URL = "http://127.0.0.1:8000"; // Adjust if necessary
 
     // Fetch tasks (GET request)
     const fetchTasks = async () => {
@@ -16,11 +16,13 @@ function App() {
             if (!response.ok) throw new Error("Failed to fetch tasks");
             const data = await response.json();
             
-            if (Array.isArray(data)) {
-                setTasks(data);
+            if (data && Array.isArray(data.task)) {
+                setTasks(data.tasks);
+            } else if (data && Array.isArray(data.tasks)) {
+                setTasks(data.tasks); // API returns tasks inside an object
             } else {
                 console.error("Unexpected API response:", data);
-                setTasks([]); // Prevent crash
+                setTasks([]);
             }
         } catch (error) {
             console.error("Error fetching tasks:", error);
@@ -99,15 +101,16 @@ function App() {
             {loading && <p>Loading tasks...</p>}
 
             <ul>
-                {Array.isArray(tasks) && tasks.length > 0 ? (
-                    tasks.map((task) => (
-                        <li key={task.id}>
-                            {task.title} - {task.description}
-                        </li>
-                    ))
-                ) : (
-                    <p>No tasks found.</p>
-                )}
+            {Array.isArray(tasks) && tasks.length > 0 ? (
+            tasks.map((task) => (
+            <li key={task.id}>
+            {task.title} - {task.description}
+        </li>
+    ))
+) : (
+    <p>No tasks found.</p>
+)}
+
             </ul>
         </div>
     );

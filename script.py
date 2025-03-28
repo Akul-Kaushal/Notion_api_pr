@@ -128,7 +128,7 @@ def update_task(task_id: str, task: TaskUpdate):
     except requests.exceptions.HTTPError as e:
         raise HTTPException(status_code=response.status_code, detail=str(e))
 
-# 4. **DELETE** - Delete Task (Fixed)
+# 4. **DELETE** - Delete Task 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: str):
     url = f"https://api.notion.com/v1/pages/{task_id}"  # Corrected URL
